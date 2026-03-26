@@ -1,0 +1,6 @@
+# Local secrets
+mephi_credentials.env
+
+# Output files
+*.xlsx
+
