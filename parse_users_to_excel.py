@@ -481,8 +481,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-pages",
         type=int,
-        default=500,
-        help="Maximum pages to scan (default: 500).",
+        default=9999,
+        help="Maximum pages to scan (default: 9999).",
     )
     parser.add_argument(
         "--insecure",
