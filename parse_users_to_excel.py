@@ -374,6 +374,8 @@ def collect_users(
     max_pages: int,
     timeout: int,
     verbose: bool,
+    output_path: str,
+    save_every_pages: int,
 ) -> list[UserRecord]:
     if start_page <= 1:
         next_url: Optional[str] = USERS_URL
@@ -408,7 +410,22 @@ def collect_users(
             page_text = str(page_label) if page_label is not None else "?"
             print(
                 f"[page {page_text}] {response.url} -> "
-                f"{len(page_records)} records, total {len(unique)}"
+                f"{len(page_records)} records, total {len(unique)}",
+                flush=True,
+            )
+        elif page_index == 1 or page_index % 10 == 0:
+            print(
+                f"[progress] scanned {page_index} pages, total {len(unique)} records",
+                flush=True,
+            )
+
+        if save_every_pages > 0 and page_index % save_every_pages == 0 and unique:
+            checkpoint_records = list(unique.values())
+            checkpoint_records.sort(key=lambda item: (item.full_name, item.group_number))
+            write_excel(checkpoint_records, output_path)
+            print(
+                f"[checkpoint] saved {len(checkpoint_records)} rows to: {output_path}",
+                flush=True,
             )
 
         next_url = find_next_page_url(soup, response.url)
@@ -483,6 +500,15 @@ def parse_args() -> argparse.Namespace:
         type=int,
         default=9999,
         help="Maximum pages to scan (default: 9999).",
+    )
+    parser.add_argument(
+        "--save-every-pages",
+        type=int,
+        default=20,
+        help=(
+            "Save partial Excel file every N pages (default: 20). "
+            "Use 0 to disable checkpoints."
+        ),
     )
     parser.add_argument(
         "--insecure",
@@ -572,14 +598,20 @@ def main() -> int:
         if args.start_page < 1:
             print("--start-page must be >= 1", file=sys.stderr)
             return 1
+        if args.save_every_pages < 0:
+            print("--save-every-pages must be >= 0", file=sys.stderr)
+            return 1
 
         login(session, username, password, timeout=args.timeout)
+        print("Parsing users pages...", flush=True)
         users = collect_users(
             session,
             start_page=args.start_page,
             max_pages=args.max_pages,
             timeout=args.timeout,
             verbose=args.verbose,
+            output_path=args.output,
+            save_every_pages=args.save_every_pages,
         )
     except requests.RequestException as exc:
         print(f"Network error: {exc}", file=sys.stderr)
